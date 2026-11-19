@@ -21,7 +21,10 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).resolve().parent
 
-DATA_PATH = BASE_DIR / "data" / "raw" / "EduPro Online Platform.xlsx"
+DEPLOYMENT_DATA_DIR = BASE_DIR / "deployment_data"
+USERS_PATH = DEPLOYMENT_DATA_DIR / "users.csv"
+COURSES_PATH = DEPLOYMENT_DATA_DIR / "courses.csv"
+TRANSACTIONS_PATH = DEPLOYMENT_DATA_DIR / "transactions.csv"
 
 NUMBER_OF_CLUSTERS = 4
 
@@ -66,20 +69,73 @@ def get_mode(series):
 @st.cache_resource
 def load_and_train_model():
 
-    users = pd.read_excel(
-        DATA_PATH,
-        sheet_name="Users"
-    )
+    # Check that all required deployment files are available.
+    required_files = [
+        USERS_PATH,
+        COURSES_PATH,
+        TRANSACTIONS_PATH
+    ]
 
-    courses = pd.read_excel(
-        DATA_PATH,
-        sheet_name="Courses"
-    )
+    missing_files = [
+        path.name for path in required_files
+        if not path.exists()
+    ]
 
-    transactions = pd.read_excel(
-        DATA_PATH,
-        sheet_name="Transactions"
-    )
+    if missing_files:
+        raise FileNotFoundError(
+            "Missing deployment data file(s): "
+            + ", ".join(missing_files)
+            + ". Make sure the deployment_data folder contains "
+              "users.csv, courses.csv, and transactions.csv."
+        )
+
+    # Load the synthetic deployment datasets.
+    users = pd.read_csv(USERS_PATH)
+    courses = pd.read_csv(COURSES_PATH)
+    transactions = pd.read_csv(TRANSACTIONS_PATH)
+
+    # Validate the columns required by the application.
+    required_columns = {
+        "users.csv": ["UserID", "Age", "Gender"],
+        "courses.csv": [
+            "CourseID",
+            "CourseName",
+            "CourseCategory",
+            "CourseLevel",
+            "CoursePrice",
+            "CourseRating"
+        ],
+        "transactions.csv": [
+            "UserID",
+            "CourseID",
+            "Amount"
+        ]
+    }
+
+    loaded_data = {
+        "users.csv": users,
+        "courses.csv": courses,
+        "transactions.csv": transactions
+    }
+
+    for file_name, columns in required_columns.items():
+
+        missing_columns = [
+            column for column in columns
+            if column not in loaded_data[file_name].columns
+        ]
+
+        if missing_columns:
+            raise ValueError(
+                f"{file_name} is missing required column(s): "
+                + ", ".join(missing_columns)
+            )
+
+    if users.empty or courses.empty or transactions.empty:
+        raise ValueError(
+            "One or more deployment CSV files are empty. "
+            "Please check users.csv, courses.csv, and transactions.csv."
+        )
 
     # Normalize identifiers
     users["UserID"] = users["UserID"].apply(normalize_id)
@@ -408,7 +464,10 @@ def recommend_courses(
 # ============================================================
 
 st.title("🎓 EduPro")
-st.subheader("Student Segmentation and Personalized Course Recommendation System")
+
+st.subheader(
+    "Student Segmentation and Personalized Course Recommendation System"
+)
 
 st.write(
     "Discover courses suited to each learner's interests, "
@@ -544,13 +603,9 @@ if st.button("Generate Recommendations", type="primary"):
 
         st.write("**Additional Student Information**")
 
-        st.write(
-            f"- Age: {student['Age']}"
-        )
+        st.write(f"- Age: {student['Age']}")
 
-        st.write(
-            f"- Gender: {student['Gender']}"
-        )
+        st.write(f"- Gender: {student['Gender']}")
 
         st.write(
             f"- Average Course Rating: "
@@ -661,5 +716,5 @@ st.sidebar.write(
 )
 
 st.sidebar.caption(
-    "Final demonstration model trained using the available historical dataset."
+    "Final demonstration model trained using synthetic demonstration data."
 )
