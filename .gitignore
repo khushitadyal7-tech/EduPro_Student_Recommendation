@@ -1,0 +1,25 @@
+
+# Private datasets
+data/
+*.xlsx
+*.xls
+*.csv
+
+# Model files
+models/
+*.pkl
+*.joblib
+
+# Generated reports
+reports/
+
+# Python temporary files
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# Secrets
+.env
